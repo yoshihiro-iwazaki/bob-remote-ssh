@@ -1,0 +1,9 @@
+# 各自が手順の中で作る個人用ファイル (配布しない)
+ssh/config
+ssh/config_windows
+ssh/bob_remote_key
+ssh/bob_remote_key.pub
+ssh/known_hosts
+
+# Bob が作るローカルの設定 (各自の環境用)
+.bob/

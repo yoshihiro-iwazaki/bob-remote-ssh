@@ -1,0 +1,16 @@
+services:
+  bob-remote-host:
+    build: .
+    image: bob-remote-ubuntu:24.04
+    container_name: bob-remote-host
+    platform: linux/amd64
+    # Bob サーバーが残す子プロセスを回収させるため tini を PID 1 にする
+    init: true
+    ports:
+      # 0.0.0.0 で公開すると LAN から sudo 可能なホストに到達できてしまうので localhost 限定
+      - "127.0.0.1:2222:2222"
+    volumes:
+      - workspace:/home/bob/workspace
+
+volumes:
+  workspace:

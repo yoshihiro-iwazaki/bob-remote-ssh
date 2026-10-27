@@ -1,0 +1,4 @@
+# ホワイトリスト方式: 秘密鍵 (ssh/bob_remote_key) をビルドコンテキストに含めない
+*
+!ssh/bob_remote_key.pub
+!sshd/

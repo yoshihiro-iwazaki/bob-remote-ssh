@@ -1,0 +1,397 @@
+---
+layout: null
+---
+{%- assign repo_url = site.github.repository_url -%}
+{%- assign branch = site.github.source.branch | default: "HEAD" -%}
+{%- assign doc_base = repo_url | append: "/blob/" | append: branch | append: "/" -%}
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IBM Bob Remote-SSH 接続ガイド</title>
+<meta name="description" content="IBM Bob の Remote-SSH で、VSI などリモートの Linux サーバー上のプロジェクトを開発するための手順と検証環境">
+<style>
+  :root {
+    --bg: #f6f8fb;
+    --surface: #ffffff;
+    --surface-2: #f0f4f9;
+    --text: #1b2430;
+    --muted: #5a6778;
+    --border: #d9e1ea;
+    --accent: #0f62fe;
+    --accent-soft: #e5edff;
+    --client: #1e88e5;
+    --client-soft: #e3f2fd;
+    --remote: #2e7d32;
+    --remote-soft: #e8f5e9;
+    --ext: #ef6c00;
+    --ext-soft: #fff3e0;
+    --step1: #1e88e5;
+    --step2: #2e7d32;
+    --step3: #8e24aa;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 4px 16px rgba(16, 24, 40, .06);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f141b;
+      --surface: #171e27;
+      --surface-2: #1d2631;
+      --text: #e6edf5;
+      --muted: #9aa8b8;
+      --border: #2b3643;
+      --accent: #78a9ff;
+      --accent-soft: #1c2b47;
+      --client: #64b5f6;
+      --client-soft: #142536;
+      --remote: #81c784;
+      --remote-soft: #142a1a;
+      --ext: #ffb74d;
+      --ext-soft: #2e2213;
+      --step1: #64b5f6;
+      --step2: #81c784;
+      --step3: #ce93d8;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+    line-height: 1.7;
+  }
+  a { color: var(--accent); }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .9em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .05em .4em;
+    overflow-wrap: anywhere;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+
+  /* ヘッダー */
+  header.hero {
+    background: linear-gradient(135deg, var(--accent-soft), var(--surface) 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 56px 0 40px;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: var(--accent);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: .2em .9em;
+  }
+  h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.3; margin: .5em 0 .3em; }
+  .lead { color: var(--muted); font-size: 1.05rem; margin: 0 0 1.2em; max-width: 46em; }
+  .key {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--remote);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 18px;
+    max-width: 46em;
+  }
+  .key strong { color: var(--remote); }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .btn {
+    display: inline-block; text-decoration: none; font-weight: 700;
+    border-radius: 10px; padding: .6em 1.1em; border: 1px solid var(--accent);
+  }
+  .btn.primary { background: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .btn.primary { color: #0f141b; } }
+  .btn.ghost { background: var(--surface); color: var(--accent); }
+
+  section { padding: 40px 0 8px; }
+  h2 { font-size: 1.4rem; margin: 0 0 .4em; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+
+  /* 構成図 */
+  .diagram {
+    display: grid;
+    grid-template-columns: 1fr auto 1.15fr auto .8fr;
+    align-items: stretch;
+    gap: 0;
+  }
+  .box {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+  .box h3 { margin: 0 0 10px; font-size: 1rem; }
+  .box.client { border-color: var(--client); background: linear-gradient(var(--client-soft), var(--surface)); }
+  .box.client h3 { color: var(--client); }
+  .box.remote { border-color: var(--remote); background: linear-gradient(var(--remote-soft), var(--surface)); }
+  .box.remote h3 { color: var(--remote); }
+  .box.ext { border-color: var(--ext); background: linear-gradient(var(--ext-soft), var(--surface)); }
+  .box.ext h3 { color: var(--ext); }
+  .node {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-top: 8px;
+    font-size: .92rem;
+  }
+  .node small { display: block; color: var(--muted); font-size: .8rem; }
+  .link {
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 0 10px; min-width: 120px; text-align: center;
+  }
+  .link .label { font-size: .82rem; font-weight: 700; line-height: 1.4; }
+  .link .arrow { font-size: 1.6rem; line-height: 1; }
+  .link.ssh { color: var(--step1); }
+  .link.dl { color: var(--ext); }
+  @media (max-width: 820px) {
+    .diagram { grid-template-columns: 1fr; }
+    .link { flex-direction: row; gap: 8px; padding: 10px 0; min-width: 0; }
+    .link .arrow { transform: rotate(90deg); }
+  }
+
+  .steps { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; }
+  .steps li {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+  }
+  .num {
+    flex: none; width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 800; color: #fff; font-size: .9rem;
+  }
+  @media (prefers-color-scheme: dark) { .num { color: #0f141b; } }
+  .n1 { background: var(--step1); } .n2 { background: var(--step2); } .n3 { background: var(--step3); }
+
+  /* カード */
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    display: flex; flex-direction: column;
+  }
+  .card h3 { margin: 0 0 4px; font-size: 1.1rem; }
+  .card .tag {
+    align-self: flex-start; font-size: .75rem; font-weight: 700; border-radius: 999px; padding: .1em .7em; margin-bottom: 8px;
+  }
+  .tag.prod { background: var(--remote-soft); color: var(--remote); border: 1px solid var(--remote); }
+  .tag.lab { background: var(--client-soft); color: var(--client); border: 1px solid var(--client); }
+  .tag.doc { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+  .card ol { margin: 8px 0 0; padding-left: 1.3em; }
+  .card p { margin: 6px 0 0; color: var(--muted); }
+  .card .go { margin-top: auto; padding-top: 14px; font-weight: 700; text-decoration: none; }
+
+  /* 要件 */
+  .reqs { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .req {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+  }
+  .req .t { font-weight: 700; }
+  .req .d { color: var(--muted); font-size: .9rem; margin-top: 4px; }
+  .note { color: var(--muted); font-size: .9rem; margin-top: 14px; }
+
+  footer {
+    margin-top: 48px; border-top: 1px solid var(--border); background: var(--surface);
+    padding: 22px 0 36px; color: var(--muted); font-size: .9rem;
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">IBM Bob × Remote-SSH</span>
+    <h1>IBM Bob Remote-SSH 接続ガイド</h1>
+    <p class="lead">
+      IBM Bob の Remote-SSH で、VSI などリモートの Linux サーバー上のプロジェクトを開発するための手順と、
+      手元で試せる Docker の検証環境をまとめています。
+    </p>
+    <div class="key">
+      <span aria-hidden="true">✅</span>
+      <div>
+        <strong>SSH で入れる Linux なら、Bob から接続できます。</strong><br>
+        Bob サーバーは初回接続時に Bob が自動でインストールするので、リモート側で Bob 用のインストールや設定は不要です。
+      </div>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="{{ doc_base }}README.md" data-doc="README.md">README を読む</a>
+      <a class="btn ghost" href="{{ repo_url }}" data-doc="">リポジトリを開く</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="architecture">
+    <div class="wrap">
+      <h2>構成</h2>
+      <p class="sub">接続先は実業務では VSI などの仮想サーバー、検証では手元の Docker コンテナ。Bob から見るとどちらも「SSH で入れる Linux」です。</p>
+
+      <div class="diagram" role="img" aria-label="クライアントの IBM Bob が SSH でリモートの Linux に接続し、リモートは IBM の配布サーバーから Bob サーバーをダウンロードする構成">
+        <div class="box client">
+          <h3>💻 クライアント (Mac / Windows)</h3>
+          <div class="node">🤖 IBM Bob<small>Remote-SSH 拡張 (同梱)</small></div>
+          <div class="node">📄 ~/.ssh/config<small>接続先の Host 設定</small></div>
+          <div class="node">🔑 秘密鍵</div>
+        </div>
+        <div class="link ssh">
+          <span class="label">① SSH 接続<br>③ SSH トンネル</span>
+          <span class="arrow" aria-hidden="true">➜</span>
+        </div>
+        <div class="box remote">
+          <h3>🖥️ リモートの Linux</h3>
+          <div class="node">🛡️ sshd<small>VSI: 22 番 / 検証環境: 127.0.0.1:2222</small></div>
+          <div class="node">⚙️ Bob サーバー<small>~/.bobide-server (② 初回接続時に自動インストール)</small></div>
+          <div class="node">📁 プロジェクト</div>
+        </div>
+        <div class="link dl">
+          <span class="label">HTTPS で<br>ダウンロード</span>
+          <span class="arrow" aria-hidden="true">➜</span>
+        </div>
+        <div class="box ext">
+          <h3>☁️ IBM の配布サーバー</h3>
+          <div class="node">Bob サーバー本体<small>api.us-east.bob.ibm.com</small></div>
+        </div>
+      </div>
+
+      <ol class="steps">
+        <li><span class="num n1">1</span><div>Bob が <code>~/.ssh/config</code> の Host 設定を使ってリモートに SSH 接続する</div></li>
+        <li><span class="num n2">2</span><div>初回接続時、Bob がリモートに Bob サーバーを自動でインストールする (リモート側が IBM の配布サーバーからダウンロード)</div></li>
+        <li><span class="num n3">3</span><div>以降の編集・ターミナル・ファイル操作は、SSH のポートフォワード経由で Bob サーバーと通信して行う</div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="usage">
+    <div class="wrap">
+      <h2>使い方</h2>
+      <p class="sub">目的に合わせてどちらかを選びます。Bob 側の追加インストールは不要です (Remote-SSH 拡張は Bob に同梱)。</p>
+      <div class="grid">
+        <article class="card">
+          <span class="tag prod">実業務</span>
+          <h3>VSI / 仮想サーバーに接続する</h3>
+          <ol>
+            <li>VSI が<a href="{{ doc_base }}README.md#リモート側の要件" data-doc="README.md#リモート側の要件">リモート側の要件</a>を満たしているか確認する</li>
+            <li>ターミナルから VSI に SSH でログインできることを確認する</li>
+            <li><a href="{{ doc_base }}bob-remote-ssh.md" data-doc="bob-remote-ssh.md">Bob からの接続手順</a>で接続する (Host 設定は VSI 用のものにする)</li>
+          </ol>
+          <a class="go" href="{{ doc_base }}README.md#実業務-vsi--仮想サーバー-に接続する" data-doc="README.md#実業務-vsi--仮想サーバー-に接続する">VSI 用の Host 設定例を見る →</a>
+        </article>
+        <article class="card">
+          <span class="tag lab">検証環境</span>
+          <h3>Docker で手元で試す</h3>
+          <ol>
+            <li><a href="{{ doc_base }}docker-setup.md" data-doc="docker-setup.md">検証環境のセットアップ</a>で Docker コンテナを起動する (Mac / Windows)</li>
+            <li><a href="{{ doc_base }}bob-remote-ssh.md" data-doc="bob-remote-ssh.md">Bob からの接続手順</a>で接続する</li>
+          </ol>
+          <a class="go" href="{{ doc_base }}docker-setup.md" data-doc="docker-setup.md">検証環境のセットアップへ →</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="requirements">
+    <div class="wrap">
+      <h2>リモート側の要件</h2>
+      <p class="sub">SSH でログインできることに加えて、Bob サーバーの自動インストールに次が必要です。</p>
+      <div class="reqs">
+        <div class="req"><div class="t">🔀 SSH のポートフォワード許可</div><div class="d"><code>AllowTcpForwarding yes</code>。禁止されていると SSH はつながっても Bob は接続できない</div></div>
+        <div class="req"><div class="t">🧩 Linux x86_64 (または ppc64le)</div><div class="d">arm64・s390x・Alpine 向けの Bob サーバーは配布されていない</div></div>
+        <div class="req"><div class="t">📚 glibc 2.28 以上</div><div class="d">目安: RHEL 8 以降、Ubuntu 20.04 以降、Debian 10 以降</div></div>
+        <div class="req"><div class="t">🌐 外部への HTTPS</div><div class="d"><code>api.us-east.bob.ibm.com</code> に出られること。プロキシは Bob の <code>remote.SSH.httpsProxy</code> で指定</div></div>
+        <div class="req"><div class="t">🧰 bash・curl (または wget)・tar</div><div class="d">一般的なクラウドの Linux イメージには入っている</div></div>
+        <div class="req"><div class="t">💾 ホームに約 450 MB の空き</div><div class="d"><code>~/.bobide-server</code> に Bob サーバーを置く</div></div>
+      </div>
+      <p class="note">
+        条件を確認するコマンドと詳しい説明は <a href="{{ doc_base }}README.md#リモート側の要件" data-doc="README.md#リモート側の要件">README の「リモート側の要件」</a>を参照。
+        配布状況と glibc の条件は Bob 1.126.0+bob2.2.3 で確認したもので、Bob のバージョンによって変わることがあります。
+      </p>
+    </div>
+  </section>
+
+  <section id="docs">
+    <div class="wrap">
+      <h2>ドキュメント</h2>
+      <p class="sub">各ドキュメントは GitHub 上で開きます。</p>
+      <div class="grid">
+        <article class="card">
+          <span class="tag doc">概要</span>
+          <h3>README</h3>
+          <p>構成図、使い方、リモート側の要件と確認コマンド、ファイル構成、検証環境の仕様。</p>
+          <a class="go" href="{{ doc_base }}README.md" data-doc="README.md">README.md を開く →</a>
+        </article>
+        <article class="card">
+          <span class="tag prod">共通</span>
+          <h3>Bob からの接続手順</h3>
+          <p>Bob の画面から <code>~/.ssh/config</code> に接続先を追加し、Remote-SSH で接続する手順 (Mac / Windows 共通)。</p>
+          <a class="go" href="{{ doc_base }}bob-remote-ssh.md" data-doc="bob-remote-ssh.md">bob-remote-ssh.md を開く →</a>
+        </article>
+        <article class="card">
+          <span class="tag lab">検証環境</span>
+          <h3>検証環境のセットアップ</h3>
+          <p>Docker で「SSH で入れる Linux」を用意する手順 (Mac / Windows)。</p>
+          <a class="go" href="{{ doc_base }}docker-setup.md" data-doc="docker-setup.md">docker-setup.md を開く →</a>
+        </article>
+        <article class="card">
+          <span class="tag doc">参考</span>
+          <h3>元記事</h3>
+          <p>IBM Bob remote SSH with Podman on macOS/Linux (検証環境の元になった Podman 版の記事)。</p>
+          <a class="go" href="https://www.the-main-thread.com/p/ibm-bob-remote-ssh-podman-macos-linux">記事を開く (外部サイト) →</a>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    動作確認: IBM Bob 1.126.0+bob2.2.3 / Mac (Apple Silicon) + Docker の検証環境。Windows の手順は実機では未検証です。<br>
+    リポジトリ: <a href="{{ repo_url }}" data-doc="">GitHub でリポジトリを開く</a>
+  </div>
+</footer>
+
+<script>
+  // ドキュメントへのリンクは GitHub Pages の公開時に Jekyll が埋め込む (公開したリポジトリとブランチを指す)。
+  // 埋め込まれていないときだけ、ここで補う。
+  (function () {
+    var liquid = '{' + '{';
+    function repoFromLocation() {
+      var host = location.hostname;
+      var parts = location.pathname.split('/').filter(Boolean);
+      var m;
+      if ((m = host.match(/^([^.]+)\.github\.io$/)) && parts[0]) return 'https://github.com/' + m[1] + '/' + parts[0];
+      if ((m = host.match(/^pages\.(.+)$/)) && parts[1]) return 'https://' + m[1] + '/' + parts[0] + '/' + parts[1];
+      if ((m = host.match(/^([^.]+)\.pages\.(.+)$/)) && parts[0]) return 'https://' + m[2] + '/' + m[1] + '/' + parts[0];
+      return null;
+    }
+    document.querySelectorAll('a[data-doc]').forEach(function (a) {
+      var href = a.getAttribute('href') || '';
+      var doc = a.getAttribute('data-doc');
+      if (location.protocol === 'file:' || href.indexOf(liquid) !== -1) {
+        // ファイルを直接開いたとき: 手元のファイルを開く
+        a.setAttribute('href', '../' + doc);
+      } else if (href === '' || href.indexOf('/blob/') === 0) {
+        // リポジトリ情報が取れなかったとき: Pages の URL からリポジトリを推定する
+        var repo = repoFromLocation();
+        if (repo) a.setAttribute('href', repo + (doc ? '/blob/HEAD/' + doc : ''));
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>

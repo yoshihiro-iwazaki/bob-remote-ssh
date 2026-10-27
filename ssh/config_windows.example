@@ -1,0 +1,14 @@
+# SSH settings for bob-docker-demo (template for Windows)
+#   1. Copy:     Copy-Item ssh\config_windows.example ssh\config_windows
+#   2. In ssh\config_windows, replace <PROJECT_DIR> (2 places) with the absolute path of this repository.
+#      Use "/" as the separator, e.g. ~/remote-server_bob or C:/Users/taro/remote-server_bob
+Host bob-docker-demo
+  HostName 127.0.0.1
+  Port 2222
+  User bob
+  IdentityFile <PROJECT_DIR>/ssh/bob_remote_key
+  IdentitiesOnly yes
+  UserKnownHostsFile <PROJECT_DIR>/ssh/known_hosts
+  StrictHostKeyChecking accept-new
+  ServerAliveInterval 30
+  ServerAliveCountMax 3

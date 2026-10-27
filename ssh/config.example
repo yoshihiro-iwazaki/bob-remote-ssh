@@ -1,0 +1,15 @@
+# bob-docker-demo への SSH 接続設定 (Mac 用のひな形)
+#   1. コピーする:  cp ssh/config.example ssh/config
+#   2. ssh/config の <PROJECT_DIR> (2 か所) を、このリポジトリを置いたディレクトリの絶対パスに書き換える
+#   使い道: ~/.ssh/config に貼る (bob-remote-ssh.md の手順 1) / CLI の -F で使う / オプションで Bob の remote.SSH.configFile に指定する
+Host bob-docker-demo
+  HostName 127.0.0.1
+  Port 2222
+  User bob
+  IdentityFile <PROJECT_DIR>/ssh/bob_remote_key
+  IdentitiesOnly yes
+  # ホスト鍵はプロジェクト内に記録する (コンテナを作り直したらこのファイルを消せば済む)
+  UserKnownHostsFile <PROJECT_DIR>/ssh/known_hosts
+  StrictHostKeyChecking accept-new
+  ServerAliveInterval 30
+  ServerAliveCountMax 3
