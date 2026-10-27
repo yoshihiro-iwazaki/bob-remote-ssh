@@ -10,7 +10,7 @@ Bob から見ると、接続先は Docker コンテナでも VSI でも「SSH �
 
 ## 構成図
 
-### 実業務 (VSI / 仮想サーバー)
+### VSI / 仮想サーバー
 
 ```mermaid
 flowchart LR
